@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Che Bagels CDE - Marcación</title>
+    <style>
+        /* Centrado Absoluto */
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: #f4f7f6; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100dvh; 
+            margin: 0; 
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            width: 90%; 
+            max-width: 360px; 
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .logo-container {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        input#pin { 
+            width: 100%; 
+            padding: 15px 0;
+            border: 2px solid #eee; 
+            border-radius: 15px; 
+            font-size: 2.5rem; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            outline: none;
+            background: #fafafa;
+            box-sizing: border-box;
+        }
+
+        input#pin:focus { border-color: #e6007e; }
+
+        .nombre { 
+            font-weight: bold; 
+            color: #e6007e; 
+            margin-bottom: 20px; 
+            font-size: 1.4rem; 
+            min-height: 1.6rem;
+        }
+
+        .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        
+        button { 
+            padding: 18px; 
+            border: none; 
+            border-radius: 12px; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            font-size: 0.9rem;
+        }
+
+        .ent { background: #27ae60; grid-column: span 2; }
+        .pau { background: #f39c12; }
+        .sal { background: #d32f2f; grid-column: span 2; }
+        .rei { background: #2980b9; grid-column: span 2; }
+        
+        #msj { margin-top: 20px; font-size: 1rem; font-weight: bold; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="logo-container">
+            <img src="logo.jpeg" alt="Logo Magic">
+        </div>
+        
+        <input type="password" id="pin" placeholder="PIN" maxlength="6" oninput="validar()" inputmode="numeric">
+        
+        <div id="nombre" class="nombre"></div>
+        <div id="panel" class="btns" style="display:none"></div>
+        <div id="msj"></div>
+    </div>
+
+<script>
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyiicfxx7N0QE-hEWBmSUk43K8071l-NLimUxmfG4Dojc7Yj9U77IsCzu3tBucZD4pg/exec"; 
+    let nombreEmpleado = "";
+
+    async function validar() {
+        const pinInput = document.getElementById('pin');
+        const val = pinInput.value;
+        const n = document.getElementById('nombre');
+        const p = document.getElementById('panel');
+        
+        // Esperamos a los 6 dígitos exactos
+        if (val.length === 6) { 
+            n.innerText = "Buscando...";
+            try {
+                const response = await fetch(URL_SCRIPT, { 
+                    method: 'POST', 
+                    body: JSON.stringify({accion: "consultar", pin: val}) 
+                });
+                const respuesta = await response.text();
+                
+                if (respuesta === "NO_EXISTE") {
+                    n.innerText = "❌ PIN Incorrecto";
+                    p.style.display = "none";
+                } else {
+                    const datos = respuesta.split("|");
+                    nombreEmpleado = datos[0];
+                    const estado = datos[1];
+                    n.innerText = "👤 " + nombreEmpleado;
+                    mostrarBotones(estado);
+                }
+            } catch (e) { 
+                n.innerText = "Error de conexión"; 
+            }
+        } else { 
+            n.innerText = ""; 
+            p.style.display = "none"; 
+        }
+    }
+
+    function mostrarBotones(est) {
+        const p = document.getElementById('panel'); 
+        p.style.display = "grid"; 
+        p.innerHTML = "";
+        
+        if (est === "Salida") {
+            p.innerHTML = '<button class="ent" onclick="solicitarGps(\'Entrada\')">ENTRADA</button>';
+        } else if (est.includes("Pausa")) {
+            p.innerHTML = '<button class="rei" onclick="solicitarGps(\'Reinicio\')">REINICIO</button>';
+        } else {
+            p.innerHTML = `
+                <button class="pau" onclick="solicitarGps('Pausa Baño')">BAÑO</button>
+                <button class="pau" onclick="solicitarGps('Pausa Break')">BREAK</button>
+                <button class="pau" onclick="solicitarGps('Pausa Almuerzo')">ALMUERZO</button>
+                <button class="sal" onclick="solicitarGps('Salida')">SALIDA</button>
+            `;
+        }
+    }
+
+    function solicitarGps(tipo) {
+        document.getElementById('panel').style.display = "none";
+        document.getElementById('msj').innerText = "📍 Localizando...";
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => enviar(tipo, "https://www.google.com/maps?q=" + pos.coords.latitude + "," + pos.coords.longitude),
+                () => enviar(tipo, "GPS denegado"),
+                { enableHighAccuracy: true, timeout: 15000 }
+            );
+        } else { enviar(tipo, "No soportado"); }
+    }
+
+    async function enviar(tipo, gps) {
+        document.getElementById('msj').innerText = "⏳ Guardando...";
+        const datos = { 
+            accion: "registrar", 
+            pin: document.getElementById('pin').value, 
+            nombre: nombreEmpleado, 
+            tipo: tipo, 
+            fecha: new Date().toLocaleDateString(), 
+            hora: new Date().toLocaleTimeString(), 
+            ubicacion: gps 
+        };
+        // Cambiamos a 'no-cors' para evitar problemas de seguridad del navegador al enviar
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(datos) });
+        document.getElementById('msj').innerHTML = "<span style='color:green'>✅ ¡LISTO!</span>";
+        setTimeout(() => location.reload(), 2000);
+    }
+</script>
+</body>
+</html>
